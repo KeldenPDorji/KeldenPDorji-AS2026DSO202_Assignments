@@ -1,0 +1,29 @@
+# Task 2 - every NON-sensitive configuration value for all three tiers.
+#
+# Note the deliberate duplication of DB_NAME / POSTGRES_DB. The backend reads
+# DB_*; the official PostgreSQL image reads POSTGRES_*. The names differ but
+# the VALUES must match, or the backend connects to a database that was never
+# created. Keeping both in one ConfigMap makes that pairing visible in a single
+# place instead of hiding it across two Deployments.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+data:
+  # --- consumed by the backend tier ---
+  DB_HOST: "db-svc"          # the headless database Service name; resolved by cluster DNS
+  DB_PORT: "5432"
+  DB_NAME: "taskdb"          # MUST equal POSTGRES_DB below
+  APP_PORT: "8080"
+  CORS_ORIGIN: "*"           # permissive by design for classroom use; see README
+
+  # --- consumed by the database tier (official postgres image variable names) ---
+  POSTGRES_DB: "taskdb"      # MUST equal DB_NAME above
+
+  # --- consumed by the frontend tier ---
+  # Cluster-internal address of the backend Service, rendered into config.js
+  # by the image's entrypoint at Pod start (never baked in at build time).
+  BACKEND_URL: "http://backend-svc:8080"

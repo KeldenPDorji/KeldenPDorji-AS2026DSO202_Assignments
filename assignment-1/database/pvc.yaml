@@ -1,0 +1,24 @@
+# Task 3 - persistent storage for the database tier (LO 4).
+#
+# No storageClassName is set, so the claim binds through the cluster's DEFAULT
+# StorageClass. On kind that is `standard`, backed by rancher.io/local-path,
+# which provisions a directory on the node and binds it lazily.
+#
+# volumeBindingMode on that class is WaitForFirstConsumer, so this PVC stays
+# Pending until the database Pod is scheduled - that is expected, not a fault.
+# The claim outlives the Pod: deleting the database Pod does not delete this
+# object or its data, which is exactly what Task 7c demonstrates.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce      # a single node mounts it read-write; correct for one PostgreSQL replica
+  resources:
+    requests:
+      storage: 1Gi       # ample for the tasks table; sits inside the LimitRange PVC min/max

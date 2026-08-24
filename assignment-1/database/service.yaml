@@ -1,0 +1,27 @@
+# Task 3 - headless Service for the database.
+#
+# clusterIP: None means the API server allocates NO virtual IP. Cluster DNS then
+# returns the Pod's own address for `db-svc` instead of a load-balanced VIP.
+# For a single stateful backend that is the right shape: the backend talks to
+# the one database Pod directly, with no kube-proxy hop in between.
+#
+# Type is ClusterIP (headless is a variant of it), so this Service is reachable
+# only from inside the cluster - the database is never exposed to the host.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-svc
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+    tier: database
+spec:
+  clusterIP: None
+  selector:
+    app: task-tracker
+    tier: database
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

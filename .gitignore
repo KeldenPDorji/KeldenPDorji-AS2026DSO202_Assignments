@@ -1,0 +1,60 @@
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# --- editors / IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Kubernetes / cluster credentials -------------------------------------
+# A kubeconfig carries client certificates and bearer tokens for a real
+# cluster. These must never be committed, unlike the assignment's Secret
+# manifest (see the note at the bottom of this file).
+kubeconfig
+*.kubeconfig
+.kube/
+*-kubeconfig.yaml
+
+# Service account tokens and anything dumped straight off a live cluster.
+*token.txt
+*-dump.yaml
+*-dump.json
+
+# --- real credential material ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.env
+.env.*
+!.env.example
+
+# --- transient output ---
+*.log
+tmp/
+.tmp/
+
+# ---------------------------------------------------------------------------
+# DELIBERATELY NOT IGNORED: assignment-1/secret.yaml
+#
+# Normally a file named secret.yaml would be the first thing excluded here.
+# It is tracked on purpose, because the assignment brief requires that ALL
+# manifests be submitted as version-controlled YAML, and Task 2 requires the
+# Secret object itself.
+#
+# This is safe only because of what that Secret contains: credentials that
+# exist nowhere but a disposable local `kind` cluster, authenticating to
+# nothing beyond a PostgreSQL container on this machine. They are not reused
+# anywhere, and the cluster is rebuilt from scratch on demand.
+#
+# The values are base64-encoded, which is NOT encryption -- see the "Secret
+# encoding caveat" section of assignment-1/README.md. Treat anything in that
+# file as public.
+# ---------------------------------------------------------------------------

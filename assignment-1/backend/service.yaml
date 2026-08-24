@@ -1,0 +1,25 @@
+# Task 4 - ClusterIP Service for the backend.
+#
+# ClusterIP is the default and the only correct type here: it allocates a
+# virtual IP routable ONLY inside the cluster. A non-negotiable constraint of
+# this assignment is that the backend must never be reachable from outside, so
+# no nodePort field appears anywhere below - and the ResourceQuota caps
+# services.nodeports at 1 (already spent by the frontend) as a second guard.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: task-tracker
+    tier: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

@@ -1,0 +1,55 @@
+# Task 8 (BONUS) - namespace-scoped read-only RBAC.
+#
+# Three objects, one idea: an identity, a set of permissions, and the binding
+# that joins them.
+#   ServiceAccount - the identity a Pod or a person authenticates as.
+#   Role           - permissions that exist ONLY inside dso202-assignment-01
+#                    (a ClusterRole would grant them cluster-wide instead).
+#   RoleBinding    - grants that Role to that ServiceAccount, in this namespace.
+#
+# The verbs are get/list/watch only, so this identity can inspect the assignment
+# but cannot create, edit, or delete anything - least privilege, and a safe
+# credential to hand a marker or a monitoring sidecar.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dso202-viewer
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dso202-readonly
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+rules:
+  # Core API group ("") - Pods, Services, ConfigMaps, PVCs.
+  # Secrets are deliberately EXCLUDED: read access to a Secret is equivalent to
+  # holding the credential, since the value is only base64-encoded.
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  # apps API group - Deployments and the ReplicaSets they own.
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dso202-readonly-binding
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+subjects:
+  - kind: ServiceAccount
+    name: dso202-viewer
+    namespace: dso202-assignment-01
+roleRef:
+  kind: Role
+  name: dso202-readonly
+  apiGroup: rbac.authorization.k8s.io

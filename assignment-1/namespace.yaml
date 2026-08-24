@@ -1,0 +1,12 @@
+# Task 1 - dedicated namespace for every object in this assignment.
+# Namespaces are the Unit I multi-tenancy boundary: they scope names, give
+# ResourceQuota/LimitRange something to attach to, and give Services their
+# cluster-DNS suffix (<service>.dso202-assignment-01.svc.cluster.local).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dso202-assignment-01
+  labels:
+    app: task-tracker
+    module: dso202
+    assignment: "01"

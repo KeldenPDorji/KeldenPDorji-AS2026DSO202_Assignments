@@ -1,0 +1,72 @@
+# Task 3 - database tier.
+#
+# One replica only. PostgreSQL is not horizontally scalable by simply raising
+# replicas, and the PVC is ReadWriteOnce, so a second replica would either fail
+# to mount or corrupt the data directory.
+#
+# strategy: Recreate - the default RollingUpdate would try to start a second
+# Pod holding the same ReadWriteOnce volume before terminating the first, which
+# hangs. Recreate tears the old Pod down first, then starts the new one.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database
+  namespace: dso202-assignment-01
+  labels:
+    app: task-tracker
+    tier: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: task-tracker
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: task-tracker
+        tier: database
+    spec:
+      containers:
+        - name: postgres
+          image: sarojsanyasi/dso202-db:1.0    # pinned tag, never :latest
+          ports:
+            - name: postgres
+              containerPort: 5432
+          # POSTGRES_* only - the DB_* names belong to the backend and would be
+          # ignored here. Non-sensitive value from the ConfigMap, credentials
+          # from the Secret; neither appears literally in this manifest.
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            # The official image's data path. Backing it with the PVC is what
+            # makes the data survive Pod deletion (Task 7c).
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-pvc
