@@ -10,8 +10,6 @@ all of the work here is the Kubernetes configuration.
 | Backend | `sarojsanyasi/dso202-backend:1.0` | 8080 | `backend-svc` - ClusterIP |
 | Database | `sarojsanyasi/dso202-db:1.0` | 5432 | `db-svc` - headless (`clusterIP: None`) |
 
----
-
 ## 1. Repository layout
 
 ```
@@ -74,8 +72,6 @@ kubectl wait --for=condition=Available deployment --all -n dso202-assignment-01 
 Order matters in one place only: `quota.yaml` is applied before any workload so that the
 LimitRange is already admitting containers when the first Pod is created.
 
----
-
 ## 3. Architecture note (Task 1)
 
 **Namespace.** `dso202-assignment-01` is the tenancy boundary for every object here. It scopes
@@ -117,8 +113,6 @@ node, so the volume is provisioned on the node the Pod actually landed on.
 | Database | Deployment (1 replica, `Recreate`) + PVC + headless Service | One replica because PostgreSQL is not made highly available by raising `replicas`, and the ReadWriteOnce PVC can only be mounted by one node anyway. `Recreate` because the default RollingUpdate would try to start a second Pod holding the same RWO volume before releasing the first, and hang. Headless because a single database Pod should be addressed directly, not through a load-balancing VIP. A StatefulSet would be the right answer for a replicated database with per-replica volumes and stable ordinals - none of which a single-replica PostgreSQL needs, and StatefulSets sit outside Unit I. |
 | Backend | Deployment + ClusterIP Service | Stateless, so a Deployment is the natural controller. ClusterIP keeps it reachable from the frontend but invisible from outside the cluster, which is a non-negotiable constraint. |
 | Frontend | Deployment + NodePort Service | Stateless and horizontally scalable. NodePort is the only Unit I mechanism that exposes a Service to the host, and 30080 is the port the kind cluster was built to forward. |
-
----
 
 ## 4. Configuration and Secrets (Task 2)
 
@@ -170,8 +164,6 @@ The bonus Role in §8 reinforces the same point by excluding `secrets` from its 
 because the value is only encoded, **read access to a Secret is equivalent to holding the
 credential**.
 
----
-
 ## 5. The three tiers (Tasks 3-5)
 
 ![All resources running](evidence/03-all-resources-running.png)
@@ -196,8 +188,6 @@ dependence on Pod startup ordering.
 container start to render that value into `config.js` before nginx serves anything, so the
 backend address is never baked in at build time. The container listens on 8080 rather than 80
 because it runs as a non-root user.
-
----
 
 ## 6. Namespace resource governance (Task 6)
 
@@ -266,8 +256,6 @@ Although all three Deployments set their resources explicitly, the LimitRange is
 it guarantees that any Pod created *later* - an imperative `kubectl run`, a debug container -
 still arrives with requests attached, and so is counted by the quota instead of being rejected
 for declaring nothing at all.
-
----
 
 ## 7. Verification and interactivity (Task 7)
 
@@ -407,8 +395,6 @@ be applied any number of times; imperative commands describe an action that assu
 starting state. That is why every resource in this assignment is committed as YAML, and the
 imperative copy was created solely for this comparison and then deleted.
 
----
-
 ## 8. Bonus - namespace RBAC (Task 8)
 
 ```bash
@@ -436,8 +422,6 @@ itself. The result is an identity safe to hand to a marker or a monitoring sidec
 inspect everything about how the assignment runs, able to change nothing, and unable to read a
 password.
 
----
-
 ## 9. Non-negotiable constraints - compliance
 
 | Constraint | How it is met |
@@ -447,8 +431,6 @@ password.
 | Every Pod, Deployment and Service carries a `tier` label | `tier: frontend` / `backend` / `database` on Deployment metadata, Pod template, and Service metadata; also used as the selector |
 | Backend and database never exposed via NodePort or LoadBalancer | `backend-svc` and `db-svc` are ClusterIP with no `nodePort` field; `services.nodeports: 1` is fully consumed by the frontend and `services.loadbalancers: 0`. Demonstrated empirically in §7a: a browser on the host reaches the frontend over its NodePort and gets `BACKEND UNREACHABLE`, because `backend-svc` resolves only inside the cluster |
 | All manifests version-controlled as YAML | This repository |
-
----
 
 ## 10. Notes and known behaviours
 
