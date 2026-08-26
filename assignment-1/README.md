@@ -289,24 +289,39 @@ cycle - `POST` returns the new task with `id: 4`, `GET` lists it alongside the t
 `PUT` returns `"status": "done"`, `DELETE` returns `HTTP 204`, and the final `GET` shows id 4
 gone.
 
-The same cycle is also available through the frontend UI:
+This is the primary CRUD evidence for Task 7a, which the brief permits to be gathered either
+through the frontend or "via curl through a port-forwarded backend".
 
-![Frontend over NodePort](evidence/06-frontend-nodeport-browser.png)
+### 7a (continued) - the frontend over the NodePort, and why the browser cannot reach the backend
 
-`localhost:30080` in the address bar confirms the NodePort Service and the kind
-`extraPortMappings` entry line up, the **BACKEND + DB ONLINE** badge confirms the frontend
-reached the backend and the backend reached PostgreSQL, and the three seeded rows confirm the
-image's `01-init.sql` seed ran against the PVC-backed volume. Each row carries a status
-dropdown and a *tear off* control, so update and delete are driven from the page.
+![Frontend over NodePort, backend not reachable](evidence/06-frontend-nodeport-backend-blocked.png)
 
-> **Note on reaching the UI's backend.** `BACKEND_URL` is `http://backend-svc:8080` exactly as
-> Task 5 requires - a cluster-internal address. The page's JavaScript runs in a browser *outside*
-> the cluster, which has no access to cluster DNS, so for this screenshot the host was given a
-> matching alias (`127.0.0.1  backend-svc` in `/etc/hosts`) alongside the port-forward already
-> running for the CRUD test. Nothing in the cluster changed and `BACKEND_URL` was not modified;
-> the alias only lets a browser resolve the same name a Pod resolves natively. It was removed
-> afterwards. The curl transcript above is the primary evidence for this task, as the brief
-> permits.
+Two separate facts are visible in this one frame.
+
+**The frontend tier is correctly exposed.** `localhost:30080` in the address bar means the
+NodePort Service and the kind `extraPortMappings` entry line up: the page, its stylesheet, and
+its rendered `config.js` were all served from the frontend Pod through `frontend-svc`. Task 5 is
+satisfied.
+
+**The backend tier is correctly *not* exposed.** The **BACKEND UNREACHABLE** badge and
+`could not load the ledger (Load failed)` show the browser getting no further than that.
+
+The reason is structural, not a misconfiguration. The frontend is a browser-side single-page
+application: `app.js` runs in the **browser**, not inside the Pod, and issues its requests to
+`${BACKEND_URL}/api/tasks` from there. `BACKEND_URL` is `http://backend-svc:8080` - a
+cluster-internal Service name, exactly as Task 5 requires. Name resolution for `backend-svc` is
+provided by CoreDNS *inside* the cluster; a browser on the host is not a cluster DNS client and
+has no route to a ClusterIP, so the fetch fails before a connection is ever attempted.
+
+This is the isolation constraint made visible rather than merely asserted. The backend is not
+just undocumented from outside the cluster - it is unroutable from outside, with no `nodePort`
+and no LoadBalancer anywhere in its definition, and `services.nodeports: 1` already spent by the
+frontend so none could be added. §7b shows the other side of the same boundary: the identical
+name, `backend-svc`, resolves and responds immediately from *inside* a Pod.
+
+The consequence for this task is that the frontend UI cannot drive the CRUD cycle from a browser
+while `BACKEND_URL` holds a cluster-internal address. That is why the curl transcript above is
+the evidence of record for Task 7a, and why the brief offers it as an accepted alternative.
 
 ### 7b - Service DNS resolution from inside a Pod
 
@@ -430,7 +445,7 @@ password.
 | No tag other than the one issued; `latest` never used | All three Deployments pin `:1.0` |
 | No credential in plaintext in any committed manifest | Credentials exist only in `secret.yaml`, base64-encoded, and are referenced by `secretKeyRef`. No ConfigMap, Deployment, or Service contains one |
 | Every Pod, Deployment and Service carries a `tier` label | `tier: frontend` / `backend` / `database` on Deployment metadata, Pod template, and Service metadata; also used as the selector |
-| Backend and database never exposed via NodePort or LoadBalancer | `backend-svc` and `db-svc` are ClusterIP with no `nodePort` field; additionally `services.nodeports: 1` is fully consumed by the frontend and `services.loadbalancers: 0` |
+| Backend and database never exposed via NodePort or LoadBalancer | `backend-svc` and `db-svc` are ClusterIP with no `nodePort` field; `services.nodeports: 1` is fully consumed by the frontend and `services.loadbalancers: 0`. Demonstrated empirically in §7a: a browser on the host reaches the frontend over its NodePort and gets `BACKEND UNREACHABLE`, because `backend-svc` resolves only inside the cluster |
 | All manifests version-controlled as YAML | This repository |
 
 ---
@@ -443,6 +458,11 @@ password.
   behaviour is what removes any dependence on Pod startup ordering.
 - **`db-pvc` sits `Pending` until the database Pod is scheduled.** The `standard` StorageClass
   binds `WaitForFirstConsumer`, so this is correct behaviour, not a fault.
+- **The frontend UI cannot reach the backend from a browser, by design.** `BACKEND_URL` is a
+  cluster-internal Service name, and the page's JavaScript runs in the browser rather than in
+  the Pod, so it has no cluster DNS and no route to a ClusterIP. The UI therefore shows
+  `BACKEND UNREACHABLE` (§7a). This is the isolation constraint working, not a misconfiguration;
+  CRUD evidence is gathered via curl through a port-forwarded backend, which the brief accepts.
 - **CORS is `*`.** A permissive setting is used for classroom simplicity; a production deployment
   would restrict `CORS_ORIGIN` to known origins.
 - **The database is a Deployment, not a StatefulSet.** Correct for one replica with one volume,
