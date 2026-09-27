@@ -1,0 +1,27 @@
+# ClusterIP, exactly as in Assignment 1 - the backend is still never reachable
+# from outside the cluster directly.
+#
+# What changed is who reaches it. In Unit I the only external entry point was
+# the frontend's NodePort, and nothing could route to this Service from outside
+# at all. In Unit II the Ingress controller (running in the ingress-nginx
+# namespace) is a cluster-internal client of this Service, and forwards the
+# /api path prefix to it at Layer 7. The Service type did not need to change for
+# that to work, which is the point: Ingress routes TO ClusterIP Services.
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: backend
+spec:
+  type: ClusterIP
+  selector:
+    app: task-tracker
+    tier: backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

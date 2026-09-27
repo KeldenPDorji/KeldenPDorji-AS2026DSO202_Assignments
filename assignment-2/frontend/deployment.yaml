@@ -1,0 +1,46 @@
+# Frontend tier, unchanged in shape from Assignment 1.
+#
+# BACKEND_URL now resolves to the Ingress host rather than a cluster-internal
+# Service name. The image's entrypoint still renders it into config.js with
+# envsubst at container start - the mechanism did not change, only the value it
+# is given, which is precisely the benefit of not baking the address in at
+# build time.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-tracker
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: task-tracker
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: sarojsanyasi/dso202-frontend:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: BACKEND_URL
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

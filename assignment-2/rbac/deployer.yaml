@@ -1,0 +1,54 @@
+# §2.3.8 - a deployment identity, written to reproduce the update-vs-patch
+# diagnosis from the notes' production scenario.
+#
+# The Role below grants create and update on Deployments and Services but NOT
+# patch. That omission is deliberate and is the whole point: `kubectl apply`
+# issues a PATCH request against an object that already exists, and patch is a
+# distinct verb from update in the RBAC model even though both end up modifying
+# the object. A Role granting only update therefore passes a first apply and
+# fails every one after it - a failure that looks like a broken pipeline rather
+# than a missing verb.
+#
+# verify/03-rbac.sh demonstrates the diagnosis and the one-verb fix, rather than
+# escalating to cluster-admin (§2.3.9).
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployer
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployer-role
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update"]   # patch intentionally missing
+  - apiGroups: [""]
+    resources: ["services", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update"]
+  # `delete` is absent from both rules as well: this identity's job is to create
+  # and update application resources, not to remove them.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-binding
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: dso202-assignment-02
+roleRef:
+  kind: Role
+  name: deployer-role
+  apiGroup: rbac.authorization.k8s.io

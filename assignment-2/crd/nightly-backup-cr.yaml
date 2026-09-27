@@ -1,0 +1,22 @@
+# §2.4.7 - one Custom Resource: an instance of the type the CRD defined.
+#
+# If the CRD is the definition of a new noun, this is one instance of that noun.
+# Applying it before the CRD exists is rejected outright by the API server,
+# because no schema is registered for the type yet (§2.4.9) - verify/04-crd.sh
+# shows that rejection deliberately before installing the CRD.
+#
+# Once the CRD is installed this object is accepted, validated against the
+# schema, stored in etcd, and listable with kubectl. Its status stays empty, and
+# no Job, CronJob or PVC snapshot is ever created, because nothing is watching
+# it. That absence is the evidence.
+apiVersion: tasktracker.dso202.io/v1
+kind: TaskTrackerBackup
+metadata:
+  name: nightly-db-backup
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+spec:
+  schedule: "0 2 * * *"           # 02:00 daily
+  targetStatefulSet: "db"         # the StatefulSet from database/statefulset.yaml
+  retentionDays: 14

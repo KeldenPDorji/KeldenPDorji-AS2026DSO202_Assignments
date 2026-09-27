@@ -1,0 +1,40 @@
+# §2.3.5 - a RoleBinding that references a ClusterRole.
+#
+# This is the mechanism §2.3.6 recommends over writing a fresh Role per
+# namespace: bind a reusable, well-tested ClusterRole - here Kubernetes's own
+# built-in `view` - inside one namespace.
+#
+# The critical property, and the §2.3.9 pitfall it exists to disprove: a
+# ClusterRole does NOT automatically grant cluster-wide access. Scope comes from
+# the BINDING type, never from the role type. Because this is a RoleBinding and
+# not a ClusterRoleBinding, `view` applies inside dso202-assignment-02 and
+# nowhere else. verify/03-rbac.sh proves that empirically against kube-system.
+#
+# `view` is also an AGGREGATED ClusterRole (§2.3.5): its rules are not a fixed
+# hand-written list but are assembled by the API server from every ClusterRole
+# labelled to match its aggregationRule. That is how a CRD author extends the
+# built-in roles to cover their own custom resource without editing them.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: namespace-auditor
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: namespace-auditor-view
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+subjects:
+  - kind: ServiceAccount
+    name: namespace-auditor
+    namespace: dso202-assignment-02
+roleRef:
+  kind: ClusterRole      # a cluster-scoped role definition...
+  name: view             # ...scoped by this binding to one namespace only
+  apiGroup: rbac.authorization.k8s.io

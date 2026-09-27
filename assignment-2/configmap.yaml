@@ -1,0 +1,37 @@
+# Non-sensitive configuration for all three tiers.
+#
+# Two values changed from Assignment 1, and both changes are the point of this
+# rebuild:
+#
+#   DB_HOST      was `db-svc` (a headless Service name, which resolved to
+#                whichever single Pod a Deployment happened to be running).
+#                It is now `db-0.db-headless` - the STABLE PER-POD DNS name a
+#                StatefulSet guarantees (§2.1.5). Ordinal 0 is always ordinal 0,
+#                whatever node it is rescheduled onto.
+#
+#   BACKEND_URL  was `http://backend-svc:8080`, a cluster-internal address that
+#                a browser could never resolve. It is now the external Ingress
+#                host, so the page and the API share one origin behind a single
+#                entry point (§2.2). This is what makes the UI actually work.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+data:
+  # --- backend tier ---
+  DB_HOST: "db-0.db-headless"   # <pod>.<headless-service>: stable across rescheduling
+  DB_PORT: "5432"
+  DB_NAME: "taskdb"             # MUST equal POSTGRES_DB below
+  APP_PORT: "8080"
+  CORS_ORIGIN: "*"
+
+  # --- database tier (official postgres image variable names) ---
+  POSTGRES_DB: "taskdb"         # MUST equal DB_NAME above
+
+  # --- frontend tier ---
+  # The Ingress host. Because /api and / are served from the same host, the
+  # browser's request to the API is same-origin - no port-forward, no NodePort.
+  BACKEND_URL: "http://tasktracker.local"

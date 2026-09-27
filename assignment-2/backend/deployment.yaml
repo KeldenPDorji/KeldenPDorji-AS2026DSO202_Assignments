@@ -1,0 +1,77 @@
+# Backend tier. Still a Deployment: its replicas ARE interchangeable, and
+# §2.1.6 is explicit that a StatefulSet should be reached for only when replica
+# identity or per-replica storage is genuinely required. Using one here would
+# buy ordered, slower rollouts for no benefit.
+#
+# The one change from Assignment 1 is the value behind DB_HOST, which now comes
+# from the ConfigMap as `db-0.db-headless` - a stable per-ordinal StatefulSet
+# address rather than a load-balanced Service VIP.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-tracker
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: task-tracker
+        tier: backend
+    spec:
+      containers:
+        - name: backend
+          image: sarojsanyasi/dso202-backend:1.0
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_NAME
+            - name: APP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: APP_PORT
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: CORS_ORIGIN
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: DB_PASSWORD
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

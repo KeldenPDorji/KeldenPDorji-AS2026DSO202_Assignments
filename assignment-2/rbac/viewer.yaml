@@ -1,0 +1,59 @@
+# §2.3 - a read-only identity, scoped to this namespace.
+#
+# §2.3.6 is explicit that permissions must never be granted to a namespace's
+# default ServiceAccount, because every Pod that does not name another one would
+# silently inherit them. This is a dedicated ServiceAccount instead.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-viewer
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-and-service-reader
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+rules:
+  # "" is the core API group.
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]          # read-only: no create, update, patch or delete
+
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+
+  # §2.3.5 - resourceNames narrows a rule to specifically named objects rather
+  # than every object of the type. This identity can read the application's own
+  # ConfigMap and nothing else in the namespace, which is a finer grain of least
+  # privilege than resource-type-level rules alone can express.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["app-config"]
+    verbs: ["get"]
+
+  # NOTE what is absent: `secrets` appears in no rule at all. Because a Secret's
+  # value is only base64-encoded (see secret.yaml), granting read access to one
+  # is equivalent to handing over the credential itself.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-viewer-binding
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+subjects:
+  - kind: ServiceAccount
+    name: app-viewer
+    namespace: dso202-assignment-02
+roleRef:
+  kind: Role
+  name: pod-and-service-reader
+  apiGroup: rbac.authorization.k8s.io

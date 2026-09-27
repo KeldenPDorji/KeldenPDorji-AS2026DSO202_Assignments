@@ -1,0 +1,32 @@
+# §2.1.5 - the headless Service that gives the StatefulSet its network identity.
+#
+# clusterIP: None means no virtual IP is allocated. Paired with a StatefulSet
+# that names this Service in spec.serviceName, cluster DNS publishes one stable
+# record per ordinal:
+#
+#     db-0.db-headless.dso202-assignment-02.svc.cluster.local
+#
+# That name always resolves to whichever Pod currently occupies ordinal 0, even
+# after it has been deleted, rescheduled onto another node, and given a new IP.
+# An ordinary ClusterIP Service would load-balance across all ordinals instead,
+# which is exactly what a replica that must address ONE specific peer cannot use
+# (§2.1.9, "reusing a load-balancing Service where a headless Service was
+# required").
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-headless
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: database
+spec:
+  clusterIP: None
+  selector:
+    app: task-tracker
+    tier: database
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

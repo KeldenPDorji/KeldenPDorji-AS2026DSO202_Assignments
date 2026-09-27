@@ -1,0 +1,78 @@
+# §2.4 - a Custom Resource Definition.
+#
+# A CRD teaches the API server a new resource type. Once installed,
+# TaskTrackerBackup objects can be created with kubectl apply, listed with
+# kubectl get, validated against the schema below, and stored in etcd exactly
+# like a built-in type - even though Kubernetes has no idea what a backup is.
+#
+# What a CRD does NOT do is act on those objects. §2.4.9 names this as the
+# single most common misconception about the Operator pattern, and
+# verify/04-crd.sh demonstrates it directly: a CR is created here, and nothing
+# happens, because no controller is watching. Writing that controller is
+# explicitly outside Unit II's scope (§2.4.7).
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: tasktrackerbackups.tasktracker.dso202.io
+spec:
+  group: tasktracker.dso202.io
+  names:
+    kind: TaskTrackerBackup
+    plural: tasktrackerbackups
+    singular: tasktrackerbackup
+    shortNames:
+      - ttb
+  scope: Namespaced          # Namespaced, not Cluster: a backup belongs to one namespace
+  versions:
+    - name: v1
+      served: true           # this version is exposed through the API
+      storage: true          # this is the version persisted to etcd
+      subresources:
+        status: {}           # §2.4.5 - a separate status subresource for a controller to write
+      # Columns shown by `kubectl get tasktrackerbackups`, so the CR reads like
+      # a built-in type rather than a bare name and age.
+      additionalPrinterColumns:
+        - name: Schedule
+          type: string
+          jsonPath: .spec.schedule
+        - name: Target
+          type: string
+          jsonPath: .spec.targetStatefulSet
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["schedule", "targetStatefulSet"]
+              properties:
+                schedule:
+                  type: string
+                  description: Cron expression for when the backup should run.
+                targetStatefulSet:
+                  type: string
+                  description: Name of the StatefulSet whose PVCs should be backed up.
+                retentionDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+                  default: 7
+            status:
+              type: object
+              properties:
+                # §2.4.5 - lets a caller confirm a controller has processed the
+                # CURRENT spec, not an older one, by comparing this against
+                # metadata.generation.
+                observedGeneration:
+                  type: integer
+                phase:
+                  type: string
+                lastBackupTime:
+                  type: string
+                  format: date-time

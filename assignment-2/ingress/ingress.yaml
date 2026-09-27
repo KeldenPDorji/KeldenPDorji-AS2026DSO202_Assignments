@@ -1,0 +1,68 @@
+# §2.2 - one entry point, routing to two Services by URL path.
+#
+# This object replaces the NodePort of Assignment 1 entirely. It is a passive
+# configuration record: on its own it does nothing at all. The ingress-nginx
+# controller running in the ingress-nginx namespace watches Ingress objects,
+# renders these rules into its own nginx configuration, and is the process that
+# actually receives and forwards traffic (§2.2.3).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: task-tracker-ingress
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+  annotations:
+    # §2.2.5 - annotations are how controller-specific behaviour is configured,
+    # and the key prefix identifies the controller they are meant for. Another
+    # controller would ignore this key silently.
+    #
+    # ingress-nginx redirects HTTP to HTTPS by default once spec.tls is set.
+    # That is turned off here so the same host can be demonstrated over both
+    # plain HTTP and TLS; a production deployment would leave the redirect on.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    #
+    # DELIBERATELY ABSENT: nginx.ingress.kubernetes.io/rewrite-target: /
+    # The §2.2.7 worked example includes it, but copying it here would break
+    # this application. Rewrite-target rewrites the matched path before
+    # forwarding, so /api/tasks would reach the backend as / and return 404.
+    # This backend serves the /api prefix natively, so the path must be passed
+    # through unchanged. §2.2.6 makes exactly this point: annotations are
+    # controller- AND application-specific, to be checked at the time of use
+    # rather than copied from a tutorial.
+spec:
+  # §2.2.6 - select the controller with ingressClassName, not the deprecated
+  # kubernetes.io/ingress.class annotation.
+  ingressClassName: nginx
+
+  # §2.2.5 - TLS termination. The controller decrypts here, using the cert and
+  # key in this Secret, and forwards plain HTTP to the Services behind it.
+  # The Secret is created imperatively from a self-signed certificate (see
+  # README); §2.2.6 notes that production uses cert-manager to issue and rotate
+  # these automatically rather than creating them by hand.
+  tls:
+    - hosts:
+        - tasktracker.local
+      secretName: tasktracker-tls
+
+  rules:
+    # §2.2.5 - name-based virtual hosting: this rule only matches requests
+    # whose HTTP Host header is tasktracker.local.
+    - host: tasktracker.local
+      http:
+        paths:
+          # Longest prefix wins, so /api is evaluated before /.
+          - path: /api
+            pathType: Prefix     # matches /api and everything beneath it, but not /apiv2
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix     # everything else: the single-page app itself
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  number: 8080

@@ -1,0 +1,77 @@
+# Namespace governance, re-derived for the Unit II workload shape.
+#
+# The headline change from Assignment 1 is services.nodeports: "0".
+# Unit I needed exactly one NodePort to reach the frontend. Unit II routes all
+# external traffic through a single Ingress controller that lives in its own
+# namespace (§2.2), so this namespace needs no NodePort at all - and the quota
+# now makes creating one impossible rather than merely discouraged.
+#
+# Compute figures assume the database StatefulSet scaled to its demonstration
+# maximum of 3 replicas (§2.1.8), which is the worst case this namespace ever
+# reaches:
+#   database  3 x (200m / 192Mi requested, 500m / 384Mi limited)
+#   backend   1 x (100m / 128Mi requested, 500m / 256Mi limited)
+#   frontend  1 x ( 50m /  64Mi requested, 200m / 128Mi limited)
+#   = 750m / 768Mi requested, 2200m / 1536Mi limited
+# Adding a rolling-update surge replica for the two Deployments (the StatefulSet
+# updates in place, one ordinal at a time, and never doubles) gives a peak of
+# 900m / 960Mi requested and 2900m / 1920Mi limited. Each ceiling sits above
+# that peak, so a rollout can never deadlock against its own quota.
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dso202-quota
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "4"
+    limits.memory: 3Gi
+
+    # 3 database ordinals + backend + frontend + rollout surge + a debug Pod.
+    pods: "12"
+    services: "6"
+
+    # One PVC per database ordinal (volumeClaimTemplates), plus one spare.
+    # Note these are RETAINED on scale-down by the StatefulSet's retention
+    # policy, so the count must cover the high-water mark, not the current
+    # replica count (§2.1.9).
+    persistentvolumeclaims: "4"
+    requests.storage: 4Gi
+
+    # Unit II: nothing in this namespace is exposed directly. The only way in
+    # is the Ingress controller.
+    services.nodeports: "0"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dso202-limits
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 256Mi
+      min:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "1"
+        memory: 512Mi
+    - type: PersistentVolumeClaim
+      min:
+        storage: 500Mi
+      max:
+        storage: 2Gi

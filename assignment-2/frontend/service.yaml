@@ -1,0 +1,30 @@
+# §2.2 - the single most visible change in this rebuild: this Service is now
+# ClusterIP, not NodePort.
+#
+# Assignment 1 had to burn a NodePort here, which is the pattern §2.2.2
+# describes as not scaling: one port per Service, pushed into the URL, capped by
+# the node's port range. The Ingress controller now provides one entry point for
+# the whole namespace and routes to this Service by path, so the frontend needs
+# no direct external exposure of its own.
+#
+# The ResourceQuota enforces this rather than trusting it: services.nodeports is
+# capped at 0, so adding `type: NodePort` back to this file would be rejected at
+# admission.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: frontend
+spec:
+  type: ClusterIP
+  selector:
+    app: task-tracker
+    tier: frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

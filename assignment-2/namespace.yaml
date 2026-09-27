@@ -1,0 +1,10 @@
+# Dedicated namespace for the Unit II rebuild, kept separate from
+# dso202-assignment-01 so the two implementations can be compared side by side.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dso202-assignment-02
+  labels:
+    app: task-tracker
+    module: dso202
+    assignment: "02"

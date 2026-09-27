@@ -1,0 +1,111 @@
+# §2.1 - the database tier, moved from a Deployment + standalone PVC to a
+# StatefulSet + volumeClaimTemplates.
+#
+# WHY THE CHANGE. Assignment 1 ran PostgreSQL as a single-replica Deployment
+# mounting one hand-written PVC. That works, but the Pod's name and address are
+# disposable: the backend had to reach it through a Service because the Pod
+# behind that Service could be called anything. A StatefulSet instead gives the
+# replica an identity - db-0 - that is stable across deletion, rescheduling, and
+# node failure, and binds storage to that identity rather than to the workload
+# as a whole.
+#
+# REPLICA COUNT. One replica, deliberately. §2.1.9 warns that a StatefulSet
+# guarantees identity but does NOT make an application use it: the provided
+# image is stock PostgreSQL with no replication configuration, so three replicas
+# would be three unrelated empty databases, not a cluster. The ordinal,
+# ordering, and per-ordinal storage mechanics are demonstrated by scaling this
+# StatefulSet up and back down (see verify/02-statefulset-identity.sh), which
+# exercises them honestly without pretending the application replicates.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: dso202-assignment-02
+  labels:
+    app: task-tracker
+    tier: database
+spec:
+  serviceName: db-headless     # MUST name the headless Service, or no per-Pod DNS is created
+  replicas: 1
+  podManagementPolicy: OrderedReady   # ordinal N+1 is not created until N is Ready
+  selector:
+    matchLabels:
+      app: task-tracker
+      tier: database
+  template:
+    metadata:
+      labels:
+        app: task-tracker
+        tier: database
+    spec:
+      containers:
+        - name: postgres
+          image: sarojsanyasi/dso202-db:1.0    # pinned tag, never :latest
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_PASSWORD
+            # PGDATA points at a SUBDIRECTORY of the mount, not the mount root.
+            # Some storage backends leave a lost+found directory at the root of
+            # a freshly provisioned volume, which makes initdb refuse to run
+            # because the directory is "not empty". A subdirectory is the
+            # standard way around that, and matches the §2.1.7 worked example.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            # Name must match the volumeClaimTemplates entry below, NOT a
+            # volume declared in this Pod spec - the StatefulSet controller
+            # wires the generated PVC in under this name.
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+
+  # §2.1.5 - one PVC generated PER REPLICA from this template, named
+  # data-db-0, data-db-1, ... A PVC declared in the Pod spec instead would be
+  # shared by every replica, which is the failure this field exists to prevent.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+        # storageClassName omitted so the cluster default (`standard`,
+        # rancher.io/local-path on kind) is used. Its binding mode is
+        # WaitForFirstConsumer, so each volume is provisioned only after the
+        # scheduler has placed the Pod that needs it.
+
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0    # 0 = every ordinal updates; raise it to hold back a canary (§2.1.8)
+
+  # §2.1.6 - set explicitly rather than left to the default, because silently
+  # discarding a database's storage is the most damaging thing a misconfigured
+  # StatefulSet can do. Retain on both paths: scaling down or deleting the
+  # StatefulSet leaves the data intact and recoverable.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
