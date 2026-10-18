@@ -1,0 +1,31 @@
+# JSON 6902 patch: take the frontend Service off the node port in production.
+#
+# This style was chosen because one operation here has no strategic-merge
+# equivalent. Setting a field to null in a merge patch is how you delete it,
+# but the nodePort lives inside a list element, and "remove" at an exact path
+# says precisely what is meant with no ambiguity about list merging.
+#
+# The patch is required, not cosmetic: the API server rejects a Service of type
+# ClusterIP that still carries spec.ports[0].nodePort.
+- op: replace
+  path: /spec/type
+  value: ClusterIP
+
+- op: remove
+  path: /spec/ports/0/nodePort
+
+# JSON Pointer escaping. A "/" inside a key is written as "~1" when the key is
+# part of the PATH, because an unescaped slash would be read as a step deeper
+# into the document. The base Service has no annotations map, so one is created
+# first - "add" cannot create intermediate levels on its own.
+#
+# The escaping belongs to the path only. Writing the key inside a "value"
+# object instead produces a literal annotation named "dso202.io~1exposure",
+# which is a silent, valid-looking error.
+- op: add
+  path: /metadata/annotations
+  value: {}
+
+- op: add
+  path: /metadata/annotations/dso202.io~1exposure
+  value: internal-only

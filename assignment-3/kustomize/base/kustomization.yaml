@@ -1,0 +1,68 @@
+# base/kustomization.yaml - the common truth shared by every environment.
+#
+# This is a build instruction, not a workload. The API server never stores it.
+# Kustomize reads it, composes the resources below, applies the transformers,
+# and emits ordinary Kubernetes YAML.
+#
+# The base is deployable on its own. Nothing here names an environment, a
+# namespace or a replica count, because those are the things that differ.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# --- Compose: collect the resources ---
+resources:
+  - database/pvc.yaml
+  - database/deployment.yaml
+  - database/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+
+# --- Transform: cross-cutting labels ---
+# includeSelectors: false is deliberate. A Deployment's spec.selector is
+# immutable after creation and a Service's selector decides traffic routing, so
+# adding a label to every selector would change resource identity. These labels
+# are for humans and dashboards, not for matching.
+labels:
+  - pairs:
+      app.kubernetes.io/name: task-tracker
+      app.kubernetes.io/part-of: dso202
+    includeSelectors: false
+    includeTemplates: true
+
+# --- Transform: image tags in one place ---
+# The Deployments below reference images without a tag. Centralising the tag
+# here means bumping a release touches one file, not three, and the rendered
+# output still shows the fully pinned reference. latest is never used.
+images:
+  - name: sarojsanyasi/dso202-db
+    newTag: "1.0"
+  - name: sarojsanyasi/dso202-backend
+    newTag: "1.0"
+  - name: sarojsanyasi/dso202-frontend
+    newTag: "1.0"
+
+# --- Generate: ConfigMap from an env-style file ---
+# Every key in config/app.env becomes a ConfigMap key. The generated name
+# carries a content hash, so changing the file changes the object name, which
+# changes every reference to it, which changes the Pod template, which causes a
+# rollout. That chain is demonstrated in verify/03-generator-hash-rollout.sh.
+configMapGenerator:
+  - name: app-config
+    envs:
+      - config/app.env
+
+# --- Generate: Secret from literals ---
+# SECURITY NOTE: a Secret is not safe merely because its kind is Secret. These
+# values are base64-encoded in the generated object, and in plaintext here, in
+# version control. They are dummy credentials for a disposable local cluster.
+# A production repository would source them from an external secret manager
+# rather than committing them because a generator makes it convenient.
+secretGenerator:
+  - name: app-secret
+    literals:
+      - DB_USER=taskuser
+      - DB_PASSWORD=T4skTr4ck3r-2026
+      - POSTGRES_USER=taskuser
+      - POSTGRES_PASSWORD=T4skTr4ck3r-2026

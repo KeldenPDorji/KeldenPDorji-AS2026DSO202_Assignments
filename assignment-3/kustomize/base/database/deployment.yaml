@@ -1,0 +1,63 @@
+# Database tier. Single replica with strategy Recreate, because the PVC is
+# ReadWriteOnce and a RollingUpdate would try to start a second Pod holding the
+# same volume before releasing the first.
+#
+# The image carries no tag here. The base kustomization's images: transformer
+# supplies it, so the rendered output is fully pinned.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database
+  labels:
+    tier: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      tier: database
+  template:
+    metadata:
+      labels:
+        tier: database
+    spec:
+      containers:
+        - name: postgres
+          image: sarojsanyasi/dso202-db
+          ports:
+            - name: postgres
+              containerPort: 5432
+          # POSTGRES_* only. The generated object names carry a content hash,
+          # and Kustomize rewrites these references to the generated names
+          # automatically - the hash is never written by hand.
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: db-pvc

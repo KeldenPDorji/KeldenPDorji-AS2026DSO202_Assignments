@@ -1,0 +1,18 @@
+# Headless Service (clusterIP: None). DNS returns the Pod's own address for
+# db-svc instead of a load-balanced virtual IP, which is the right shape for a
+# single database Pod addressed directly by the backend.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-svc
+  labels:
+    tier: database
+spec:
+  clusterIP: None
+  selector:
+    tier: database
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

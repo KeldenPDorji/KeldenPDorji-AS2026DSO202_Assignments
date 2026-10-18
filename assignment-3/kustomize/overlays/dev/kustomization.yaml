@@ -1,0 +1,43 @@
+# overlays/dev/kustomization.yaml - a thin overlay.
+#
+# Nothing here is a copy of a base resource. The overlay states only what makes
+# development different, which is the property that prevents drift: a change to
+# the application's structure is made once, in the base, and both environments
+# inherit it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+# Every object lands in this namespace, including ones the base never named.
+# The namespace is the isolation boundary, which is why no namePrefix is used.
+#
+# namePrefix was tried and deliberately removed. Kustomize's name
+# transformation is reference-AWARE but not value-aware: it rewrites known
+# reference fields (configMapKeyRef.name, secretKeyRef.name, claimName) and
+# leaves ordinary data alone. DB_HOST lives in the ConfigMap's data as the
+# plain string "db-svc", so a prefix renamed the Service to dev-db-svc while
+# DB_HOST still said db-svc. The backend then failed DNS forever - and because
+# this chart has no readiness probe, its Pod still reported 1/1 Running.
+# Two namespaces already keep the environments apart, so the prefix bought
+# nothing and cost a silent outage.
+namespace: dso202-a3-dev
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: dev
+    includeSelectors: false
+    includeTemplates: true
+
+# A purpose-built transformer, not a patch. Expressing replica count this way
+# keeps the intent obvious and avoids a patch file for a single integer.
+replicas:
+  - name: backend
+    count: 1
+  - name: frontend
+    count: 1
+
+# The frontend Service keeps the base's NodePort 30080, so the development
+# build is reachable from the host without a port-forward. No patch needed.

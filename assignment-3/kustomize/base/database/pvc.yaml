@@ -1,0 +1,16 @@
+# Persistent storage for the database tier.
+# No storageClassName, so the cluster default (standard / rancher.io/local-path
+# on kind) binds it. Its volumeBindingMode is WaitForFirstConsumer, so the
+# claim stays Pending until the database Pod is scheduled.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  labels:
+    tier: database
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

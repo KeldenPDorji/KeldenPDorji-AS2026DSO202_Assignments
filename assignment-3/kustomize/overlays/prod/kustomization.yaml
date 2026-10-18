@@ -1,0 +1,54 @@
+# overlays/prod/kustomization.yaml
+#
+# Like the dev overlay, this contains no copied resource YAML. It is a list of
+# differences: a namespace, a prefix, labels, replica counts, two merged
+# configuration keys, and three patches.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+# No namePrefix here either; see the note in overlays/dev/kustomization.yaml.
+namespace: dso202-a3-prod
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: prod
+    includeSelectors: false
+    includeTemplates: true
+
+replicas:
+  - name: backend
+    count: 2
+  - name: frontend
+    count: 2
+
+# behavior: merge keeps every key the base generated and adds or overrides only
+# the two named here. behavior: replace would discard DB_HOST, DB_NAME and the
+# rest, which is the usual cause of an overlay that renders a half-configured
+# ConfigMap.
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    envs:
+      - config-overrides.env
+
+# Patches are applied in the order listed. Both resource patches are
+# independent of each other and of the Service patch, so the order is not
+# load-bearing here - but it would be if two of them wrote the same field, and
+# a reviewer should not have to mentally execute a stack of competing patches.
+patches:
+  # Strategic merge: readable Kubernetes fragments, matched by kind and name.
+  - path: patch-backend-resources.yaml
+  - path: patch-frontend-resources.yaml
+
+  # JSON 6902: needs an explicit target, because the operations are a list and
+  # carry no object identity of their own. The target is narrow on purpose -
+  # "kind: Service" alone would match the backend and database Services too.
+  - path: patch-frontend-service.yaml
+    target:
+      version: v1
+      kind: Service
+      name: frontend-svc

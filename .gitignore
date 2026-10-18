@@ -58,3 +58,7 @@ tmp/
 # encoding caveat" section of assignment-1/README.md. Treat anything in that
 # file as public.
 # ---------------------------------------------------------------------------
+
+# Assignment 3 build artifacts (rendered YAML and packaged charts are regenerable)
+assignment-3/outputs/*
+!assignment-3/outputs/.gitkeep
