@@ -1,0 +1,22 @@
+# environments/dev.yaml - overrides for the development release.
+#
+# These files live outside the chart directory because they belong to the
+# DEPLOYMENT of the chart, not to the chart itself. The chart is the package;
+# these are one consumer's configuration of it.
+#
+# Each file is applied on its own, on top of the chart defaults. Layering
+# dev.yaml and prod.yaml together is not "switching environments" - the merge
+# is deep, so any key one file omits is inherited from the other.
+config:
+  environment: dev
+  corsOrigin: "*"
+  backendUrl: "http://localhost:30080"
+
+backend:
+  replicaCount: 1
+
+frontend:
+  replicaCount: 1
+  service:
+    type: NodePort
+    nodePort: 30080

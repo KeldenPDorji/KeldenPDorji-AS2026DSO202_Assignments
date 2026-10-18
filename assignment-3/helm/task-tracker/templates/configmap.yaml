@@ -1,0 +1,25 @@
+{{- /*
+configmap.yaml - the non-sensitive configuration for all three tiers.
+
+dbName is written twice, once as DB_NAME for the backend and once as
+POSTGRES_DB for the official PostgreSQL image. Deriving both from one value is
+what a template buys over two hand-maintained manifests: the two conventions
+cannot drift apart, because there is only one source.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "task-tracker.fullname" . }}
+  labels:
+    {{- include "task-tracker.labels" . | nindent 4 }}
+data:
+  # consumed by the backend tier
+  DB_HOST: {{ printf "%s-db" (include "task-tracker.fullname" .) | quote }}
+  DB_PORT: "5432"
+  DB_NAME: {{ .Values.config.dbName | quote }}
+  APP_PORT: {{ .Values.config.appPort | quote }}
+  CORS_ORIGIN: {{ .Values.config.corsOrigin | quote }}
+  # consumed by the database tier (official image variable names)
+  POSTGRES_DB: {{ .Values.config.dbName | quote }}
+  # consumed by the frontend tier
+  BACKEND_URL: {{ .Values.config.backendUrl | quote }}

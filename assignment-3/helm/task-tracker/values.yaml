@@ -1,0 +1,103 @@
+# values.yaml - the chart's configuration interface.
+#
+# Every key below can be overridden with -f <file> or --set <key>=<value>.
+# Each one is commented, because this file is the documentation a consumer of
+# the chart reads before installing it.
+
+# --- naming -----------------------------------------------------------------
+# Override the generated object names. Left empty, names are derived from the
+# release name and the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# --- images -----------------------------------------------------------------
+image:
+  # Docker Hub account that publishes all three tier images.
+  registry: sarojsanyasi
+  pullPolicy: IfNotPresent
+
+# --- shared configuration ---------------------------------------------------
+# These become the non-sensitive ConfigMap. The backend reads DB_*, the
+# official PostgreSQL image reads POSTGRES_*; dbName supplies both, so the two
+# conventions cannot drift apart.
+config:
+  # No default on purpose. The chart refuses to render until an environment is
+  # chosen here or through global.environment, so no object can reach a cluster
+  # without one.
+  environment: ""
+  dbName: taskdb
+  appPort: 8080
+  corsOrigin: "*"
+  # Address the browser uses to reach the API. For a NodePort release this is
+  # the host port; for a cluster-internal release it is the external URL the
+  # application will eventually be published at.
+  backendUrl: "http://localhost:30080"
+
+# --- credentials ------------------------------------------------------------
+# These become the Secret. They are dummy values for a disposable local
+# cluster. Helm stores every supplied value in the release record, so a real
+# password passed here is readable with "helm get values" by anyone who can
+# read Secrets in the namespace. A production release supplies them from an
+# external secret manager at install time instead.
+credentials:
+  user: taskuser
+  password: "T4skTr4ck3r-2026"
+
+# --- database tier ----------------------------------------------------------
+database:
+  image: dso202-db
+  # Empty means "use .Chart.AppVersion", the convention most published charts
+  # follow, so bumping the application is a one-line change in Chart.yaml.
+  tag: ""
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 200m
+      memory: 192Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+
+# --- backend tier -----------------------------------------------------------
+backend:
+  replicaCount: 1
+  image: dso202-backend
+  tag: ""
+  service:
+    port: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# --- frontend tier ----------------------------------------------------------
+frontend:
+  replicaCount: 1
+  image: dso202-frontend
+  tag: ""
+  service:
+    # ClusterIP or NodePort.
+    type: NodePort
+    port: 8080
+    # Used only when type is NodePort. Must be in the range 30000-32767.
+    nodePort: 30080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# --- extras -----------------------------------------------------------------
+# Extra annotations added to every Pod template.
+podAnnotations: {}
+
+# Values a parent chart would share with its subcharts. Declared here so that
+# .Values.global.environment can be read safely when this chart is installed on
+# its own - reading a key under a map that does not exist is a render error.
+global:
+  environment: ""

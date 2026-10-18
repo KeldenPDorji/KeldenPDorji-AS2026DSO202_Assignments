@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "task-tracker values",
+  "description": "Validated by Helm on every lint, template, install and upgrade, before any template is rendered.",
+  "type": "object",
+  "required": ["image", "config", "credentials", "database", "backend", "frontend"],
+  "properties": {
+    "nameOverride":     { "type": "string" },
+    "fullnameOverride": { "type": "string" },
+
+    "image": {
+      "type": "object",
+      "required": ["registry", "pullPolicy"],
+      "properties": {
+        "registry":   { "type": "string", "minLength": 1 },
+        "pullPolicy": { "enum": ["Always", "IfNotPresent", "Never"] }
+      }
+    },
+
+    "config": {
+      "type": "object",
+      "required": ["environment", "dbName", "appPort", "corsOrigin", "backendUrl"],
+      "properties": {
+        "environment": { "enum": ["", "dev", "staging", "prod"] },
+        "dbName":      { "type": "string", "minLength": 1 },
+        "appPort":     { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "corsOrigin":  { "type": "string", "minLength": 1 },
+        "backendUrl":  { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "credentials": {
+      "type": "object",
+      "required": ["user", "password"],
+      "properties": {
+        "user":     { "type": "string", "minLength": 1 },
+        "password": { "type": "string", "minLength": 8 }
+      }
+    },
+
+    "database": {
+      "type": "object",
+      "required": ["image", "tag", "storage"],
+      "properties": {
+        "image":     { "type": "string", "minLength": 1 },
+        "tag":       { "type": "string" },
+        "storage":   { "type": "string", "pattern": "^[0-9]+(Mi|Gi)$" },
+        "resources": { "type": "object" }
+      }
+    },
+
+    "backend": {
+      "type": "object",
+      "required": ["replicaCount", "image", "tag", "service"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "image":        { "type": "string", "minLength": 1 },
+        "tag":          { "type": "string" },
+        "service": {
+          "type": "object",
+          "required": ["port"],
+          "properties": {
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 }
+          }
+        },
+        "resources": { "type": "object" }
+      }
+    },
+
+    "frontend": {
+      "type": "object",
+      "required": ["replicaCount", "image", "tag", "service"],
+      "properties": {
+        "replicaCount": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "image":        { "type": "string", "minLength": 1 },
+        "tag":          { "type": "string" },
+        "service": {
+          "type": "object",
+          "required": ["type", "port"],
+          "properties": {
+            "type":     { "enum": ["ClusterIP", "NodePort"] },
+            "port":     { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "nodePort": { "type": ["integer", "null"], "minimum": 30000, "maximum": 32767 }
+          }
+        },
+        "resources": { "type": "object" }
+      }
+    },
+
+    "podAnnotations": { "type": "object" },
+
+    "global": {
+      "type": "object",
+      "properties": {
+        "environment": { "enum": ["", "dev", "staging", "prod"] }
+      }
+    }
+  }
+}

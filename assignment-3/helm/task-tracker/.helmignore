@@ -1,0 +1,6 @@
+# Patterns left out of the archive produced by helm package.
+.git/
+*.swp
+*.bak
+*.tmp
+.DS_Store

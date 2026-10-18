@@ -1,0 +1,21 @@
+# Chart.yaml - the identity and metadata of the package.
+apiVersion: v2                 # chart format for Helm 3 and Helm 4; v1 is the legacy Helm 2 format
+name: task-tracker             # must match the directory name
+description: The DSO202 three-tier Task Tracker (nginx frontend, Node.js API, PostgreSQL)
+type: application              # renders objects; a "library" chart would only provide helpers
+version: 0.1.0                 # version of the CHART (the package), SemVer 2
+appVersion: "1.0"              # version of the APPLICATION inside; quoted so YAML keeps it a string
+kubeVersion: ">=1.30.0-0"      # refuse to install on older clusters; -0 also accepts pre-releases
+keywords:
+  - dso202
+  - task-tracker
+  - three-tier
+maintainers:
+  - name: Kelden P. Dorji
+sources:
+  - https://hub.docker.com/u/sarojsanyasi
+
+# version and appVersion change for different reasons. Adding a template to
+# this chart without changing the application raises version only. Moving to a
+# new application image raises appVersion, and version too, because a file in
+# the chart changed. Two different packages must never share one chart version.

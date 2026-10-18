@@ -1,0 +1,46 @@
+{{- /*
+tests/test-connection.yaml - run by "helm test". The Pod must exit 0 for the
+test to pass.
+
+The hook annotation keeps this Pod out of install and upgrade; it is created
+only when helm test runs. A release reported as "deployed" means the API
+server accepted the objects, and with --wait that they became ready. It does
+not mean the application works - this test is what checks that.
+
+The script is written as a block scalar (|) because it contains ": ", which
+YAML would otherwise read as a key-value separator and turn the list item into
+a map. That failure passes helm lint and is caught only by the API server.
+*/}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "task-tracker.fullname" . }}-test-connection
+  labels:
+    {{- include "task-tracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  containers:
+    - name: probe
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "checking the backend answers through its Service"
+          wget -qO- http://{{ printf "%s-backend" (include "task-tracker.fullname" .) }}:{{ .Values.backend.service.port }}/api/status | grep '"db":"connected"'
+          echo "checking the frontend serves the page"
+          wget -qO- http://{{ printf "%s-frontend" (include "task-tracker.fullname" .) }}:{{ .Values.frontend.service.port }}/ | grep -i "Field Log"
+          echo "checking BACKEND_URL reached the rendered config.js"
+          wget -qO- http://{{ printf "%s-frontend" (include "task-tracker.fullname" .) }}:{{ .Values.frontend.service.port }}/config.js | grep {{ .Values.config.backendUrl | quote }}
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi

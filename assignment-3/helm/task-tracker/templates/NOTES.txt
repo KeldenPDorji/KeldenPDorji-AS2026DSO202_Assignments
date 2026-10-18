@@ -1,0 +1,22 @@
+Release {{ .Release.Name }} (revision {{ .Release.Revision }}) is installed in namespace {{ .Release.Namespace }}.
+
+  Environment : {{ include "task-tracker.environment" . }}
+  Chart       : {{ include "task-tracker.chart" . }}, application version {{ .Chart.AppVersion }}
+  Replicas    : backend {{ .Values.backend.replicaCount }}, frontend {{ .Values.frontend.replicaCount }}
+{{- if eq .Values.frontend.service.type "NodePort" }}
+
+Open the Task Tracker from the host:
+
+  http://localhost:{{ .Values.frontend.service.nodePort }}
+{{- else }}
+
+The frontend is ClusterIP in this release. Forward a local port to reach it:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ printf "%s-frontend" (include "task-tracker.fullname" .) }} 8080:{{ .Values.frontend.service.port }}
+{{- end }}
+
+Verify the release:
+
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+  helm get values {{ .Release.Name }} -n {{ .Release.Namespace }}
+  helm history {{ .Release.Name }} -n {{ .Release.Namespace }}

@@ -1,0 +1,34 @@
+# environments/prod.yaml - overrides for the production release.
+#
+# Note that service.nodePort is set to null rather than omitted. Omitting it
+# would inherit 30080 from the chart defaults, and the template would then
+# emit a nodePort on a ClusterIP Service, which the API server rejects.
+# Setting a key to null deletes it, including a default that comes from the
+# chart.
+config:
+  environment: prod
+  corsOrigin: "https://tasks.example.com"
+  backendUrl: "https://tasks.example.com"
+
+backend:
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+frontend:
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    nodePort: null
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
