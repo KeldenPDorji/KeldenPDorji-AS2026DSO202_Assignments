@@ -1,0 +1,15 @@
+# =============================================================================
+# File        : charts/tasktracker/templates/drill-quota.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit IV 4.4.1 - AppProjects: resource kind restrictions
+# Purpose     : Task 8, drill 4. A ResourceQuota inside the workload chart. The
+#               dso202 project does not permit this kind, so the sync must be
+#               rejected. The file is removed again by reverting its commit.
+# =============================================================================
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: drill-quota
+spec:
+  hard:
+    pods: "50"

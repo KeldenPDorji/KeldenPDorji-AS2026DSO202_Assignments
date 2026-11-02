@@ -62,3 +62,6 @@ tmp/
 # Assignment 3 build artifacts (rendered YAML and packaged charts are regenerable)
 assignment-3/outputs/*
 !assignment-3/outputs/.gitkeep
+
+# Assignment 4 raw script output (the report is in the dso202-gitops repository)
+assignment-4/outputs/

@@ -1,0 +1,14 @@
+# =============================================================================
+# File        : platform/dev/prune-drill.yaml
+# Assignment  : DSO202 Assignment 4
+# Descriptor  : Unit IV 4.3.2 - sync policies (automated pruning)
+# Purpose     : Task 8, drill 3. A throwaway object that is added to Git, then
+#               removed from Git. Pruning must delete it from the cluster.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prune-drill
+  namespace: dso202-dev
+data:
+  purpose: "Added to Git, then removed from Git; expected to disappear from the cluster"
